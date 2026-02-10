@@ -68,3 +68,16 @@ if __name__ == "__main__":
     cursor.close()
     conn.close()
     print("\n操作完成！")
+    # === Day2 新增：聚合函数+GROUP BY（算法岗核心统计）===
+    # 1. 整体统计
+    cursor.execute("SELECT COUNT(*), AVG(score) FROM dataset;")
+    total, avg_score = cursor.fetchone()
+    print("\n=== 整体数据统计 ===")
+    print(f"总样本数：{total}，score均值：{round(avg_score, 2)}")
+    
+    # 2. 分组统计（核心）
+    cursor.execute("SELECT label, COUNT(*), AVG(score) FROM dataset GROUP BY label;")
+    group_stats = cursor.fetchall()
+    print("\n=== 按标签分组统计 ===")
+    for label, count, avg in group_stats:
+        print(f"标签 {label}：{count} 条，score均值 {round(avg, 2)}")
