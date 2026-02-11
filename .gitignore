@@ -1,0 +1,14 @@
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 数据库文件
+*.db
+
+# Shell 脚本（如果不需要共享）
+*.sh
+
+# 编辑器临时文件
+*.swp
+*.swo
