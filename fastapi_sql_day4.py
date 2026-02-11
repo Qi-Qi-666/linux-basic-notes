@@ -128,6 +128,11 @@ if __name__ == "__main__":
 # 5. 功能3：查单条数据详情（新增）
 @app.get("/api/get_data/{data_id}", summary="查单条数据的详情")
 def get_single_data(data_id: int):
+     # 新增抗错1：检查ID是否为正数（防止输0、负数）
+    if data_id <= 0:
+        raise HTTPException(status_code=400, detail="数据ID必须是正数哦（比如1、2、3）！")
+    
+    conn = get_db_connection()
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -160,10 +165,11 @@ def get_single_data(data_id: int):
         }
     )
 # 新功能1：按标签、分数筛选数据
-@app.get("/api/filter_data")
+@app.get("/api/filter_data", summary="按标签/最低得分过滤数据")
 def filter_data(label: str = None, min_score: float = 0.0):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    # 新增抗错1：检查分数是否在0-1之间（算法得分都是0-1，防止输负数、大于1的数）
+    if min_score < 0 or min_score > 1:
+        raise HTTPException(status_code=400, detail="最低得分必须在0到1之间哦（比如0.8、0.9）！")
 
     if label:
         cursor.execute("""
@@ -180,6 +186,14 @@ def filter_data(label: str = None, min_score: float = 0.0):
 
     rows = cursor.fetchall()
     conn.close()
+
+     # 新增抗错2：没查到符合条件的数据时，友好提示
+    if not rows:
+        if label:
+            tip = f"没找到标签为{label}且得分≥{min_score}的数据哦！"
+        else:
+            tip = f"没找到得分≥{min_score}的数据哦！"
+        raise HTTPException(status_code=404, detail=tip)
 
     data_list = []
     for r in rows:
@@ -211,6 +225,12 @@ def export_csv():
     conn.close()
 
     # ★ 新增：把SQLite的特殊列表转成纯字典列表（关键修复！）
+
+    # 新增抗错：数据库为空时，提示不用导出
+    if not rows:
+        raise HTTPException(status_code=404, detail="数据库里还没有数据哦！先上传CSV文件再导出～")
+    
+
     rows_dict = []
     for row in rows:
         rows_dict.append({
