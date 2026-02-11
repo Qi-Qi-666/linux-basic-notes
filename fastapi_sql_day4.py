@@ -159,3 +159,79 @@ def get_single_data(data_id: int):
             }
         }
     )
+# 新功能1：按标签、分数筛选数据
+@app.get("/api/filter_data")
+def filter_data(label: str = None, min_score: float = 0.0):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if label:
+        cursor.execute("""
+            SELECT rowid, label, score, feature1, feature2
+            FROM dataset
+            WHERE label = ? AND score >= ?
+        """, (label, min_score))
+    else:
+        cursor.execute("""
+            SELECT rowid, label, score, feature1, feature2
+            FROM dataset
+            WHERE score >= ?
+        """, (min_score,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    data_list = []
+    for r in rows:
+        data_list.append({
+            "ID": r["rowid"],
+            "标签": r["label"],
+            "得分": r["score"],
+            "特征1": r["feature1"],
+            "特征2": r["feature2"]
+        })
+
+    return {
+        "状态": "成功",
+        "查到条数": len(data_list),
+        "数据": data_list
+    }
+# ========== 功能5 数据导出接口（修复版） ==========
+@app.get("/api/export_csv", summary="把数据库数据导出为CSV文件")
+def export_csv():
+    """
+    算法岗常用：把数据库里的所有数据导回CSV，方便后续模型训练
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 查询所有数据
+    cursor.execute("SELECT label, score, feature1, feature2 FROM dataset")
+    rows = cursor.fetchall()
+    conn.close()
+
+    # ★ 新增：把SQLite的特殊列表转成纯字典列表（关键修复！）
+    rows_dict = []
+    for row in rows:
+        rows_dict.append({
+            "label": row["label"],
+            "score": row["score"],
+            "feature1": row["feature1"],
+            "feature2": row["feature2"]
+        })
+    
+    # 生成CSV文件（保存到当前目录，文件名：exported_dataset.csv）
+    csv_filename = "exported_dataset.csv"
+    with open(csv_filename, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["label", "score", "feature1", "feature2"])
+        writer.writeheader()  # 写列名
+        # ★ 修改：把rows改成rows_dict
+        writer.writerows(rows_dict)  # 写数据
+    
+    # 返回文件给浏览器下载（FastAPI自带的文件返回功能）
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=csv_filename,
+        filename=csv_filename,
+        media_type="text/csv"
+    )
