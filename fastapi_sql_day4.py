@@ -125,3 +125,37 @@ def upload_csv(file: UploadFile = File(...)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+# 5. 功能3：查单条数据详情（新增）
+@app.get("/api/get_data/{data_id}", summary="查单条数据的详情")
+def get_single_data(data_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 查指定行的数据（按行号查）
+    cursor.execute("""
+        SELECT rowid, label, score, feature1, feature2 
+        FROM dataset 
+        WHERE rowid = ?
+    """, (data_id,))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail=f"没找到ID为{data_id}的数据哦！")
+    
+    # 返回单条数据详情
+    return JSONResponse(
+        status_code=200,
+        content={
+            "状态": "成功",
+            "提示": "查到数据啦",
+            "数据": {
+                "数据ID": row["rowid"],
+                "标签": row["label"],
+                "得分": row["score"],
+                "特征1": row["feature1"],
+                "特征2": row["feature2"]
+            }
+        }
+    )
